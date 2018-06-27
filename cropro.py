@@ -1,10 +1,37 @@
+import re
+
 from aqt import mw
 from aqt.qt import *
 from aqt.utils import showInfo
+from anki.utils import stripHTMLMedia
 from anki import Collection
+from anki.notes import Note
 
-def getColDeckNames(col):
-    return sorted(col.decks.allNames())
+ENABLE_DEBUG_LOG = True
+logfile = None
+
+def logDebug(s):
+    if not ENABLE_DEBUG_LOG:
+        return
+
+    global logfile
+    if not logfile:
+        fn = os.path.join(mw.pm.base, 'cropro.log')
+        logfile = open(fn, 'a')
+    logfile.write(s + '\n')
+    logfile.flush()
+
+# backported from Anki 2.1 anki/utils.py
+def htmlToTextLine(s):
+    s = s.replace("<br>", " ")
+    s = s.replace("<br />", " ")
+    s = s.replace("<div>", " ")
+    s = s.replace("\n", " ")
+    s = re.sub("\[sound:[^]]+\]", "", s)
+    s = re.sub("\[\[type:[^]]+\]\]", "", s)
+    s = stripHTMLMedia(s)
+    s = s.strip()
+    return s
 
 def getOtherProfileNames():
     profiles = mw.pm.profiles()
@@ -51,27 +78,29 @@ class MainDialog(QDialog):
         otherProfileDeckRow.addWidget(self.otherProfileDeckCombo)
         otherProfileDeckRow.addStretch(1)
 
-        searchEdit = QLineEdit()
-        searchEdit.setPlaceholderText('<search text>')
+        filterEdit = QLineEdit()
+        filterEdit.setPlaceholderText('<filter notes>')
 
-        searchRow = QHBoxLayout()
-        searchRow.addWidget(searchEdit)
-        searchRow.addWidget(QPushButton('Search'))
+        filterRow = QHBoxLayout()
+        filterRow.addWidget(filterEdit)
+        filterRow.addWidget(QPushButton('Filter'))
 
         currentProfileNameLabel = QLabel(mw.pm.name)
         currentProfileNameLabelFont = QFont()
         currentProfileNameLabelFont.setBold(True)
         currentProfileNameLabel.setFont(currentProfileNameLabelFont)
 
-        currentProfileDeckCombo = QComboBox()
-        currentProfileDeckCombo.addItems(getColDeckNames(mw.col))
-        currentProfileDeckCombo.currentIndexChanged.connect(self.currentProfileDeckComboChange)
+        self.currentProfileDeckCombo = QComboBox()
+        currentProfileDecks = mw.col.decks.all()
+        currentProfileDecks.sort(key=lambda d: d['name'])
+        for deck in currentProfileDecks:
+            self.currentProfileDeckCombo.addItem(deck['name'], deck['id'])
 
         importRow = QHBoxLayout()
         importRow.addWidget(QLabel('Into Profile:'))
         importRow.addWidget(currentProfileNameLabel)
         importRow.addWidget(QLabel('Deck:'))
-        importRow.addWidget(currentProfileDeckCombo)
+        importRow.addWidget(self.currentProfileDeckCombo)
 
         importButton = QPushButton('Import')
         importButton.clicked.connect(self.importButtonClick)
@@ -81,7 +110,7 @@ class MainDialog(QDialog):
 
         mainVbox = QVBoxLayout()
         mainVbox.addLayout(otherProfileDeckRow)
-        mainVbox.addLayout(searchRow)
+        mainVbox.addLayout(filterRow)
         mainVbox.addWidget(self.noteListView)
         mainVbox.addLayout(importRow)
 
@@ -99,21 +128,17 @@ class MainDialog(QDialog):
         self.noteListModel.clear()
         if newDeckName:
             # deck was selected, fill list
-            # TODO: need to quote the deck query in case deck name has spaces?
-            noteIds = self.otherProfileCollection.findNotes('deck:' + newDeckName)
+            noteIds = self.otherProfileCollection.findNotes('deck:"' + newDeckName + '"') # quote name in case it has spaces
             # TODO: we could try to do this in a single sqlite query, but would be brittle
             for noteId in noteIds:
                 note = self.otherProfileCollection.getNote(noteId)
                 item = QStandardItem()
-                item.setText(note.fields[0])
+                item.setText(htmlToTextLine(note.fields[0]))
                 item.setData(noteId)
                 self.noteListModel.appendRow(item)
         else:
             # deck was unselected, leave list cleared
             pass
-
-    def currentProfileDeckComboChange(self):
-        showInfo('current profile deck change')
 
     def handleSelectOtherProfile(self, name):
         # Close current collection object, if any
@@ -125,19 +150,65 @@ class MainDialog(QDialog):
         self.otherProfileCollection = openProfileCollection(name)
 
         self.otherProfileDeckCombo.clear()
-        self.otherProfileDeckCombo.addItems(getColDeckNames(self.otherProfileCollection))
+        self.otherProfileDeckCombo.addItems(sorted(self.otherProfileCollection.decks.allNames()))
 
     def importButtonClick(self):
-        # Get the note ids of all selected notes
+        logDebug('beginning import')
+
+        currentProfileDeckId = self.currentProfileDeckCombo.itemData(self.currentProfileDeckCombo.currentIndex())
+        logDebug('current profile deck id %d' % currentProfileDeckId)
+
+        # get the note ids of all selected notes
         noteIds = [self.noteListModel.itemFromIndex(idx).data() for idx in self.noteListView.selectedIndexes()]
-        notesStr = ';'.join(repr(self.otherProfileCollection.getNote(nid).items()) for nid in noteIds)
-        showInfo('import: ' + notesStr)
+
+        # clear the selection
+        self.noteListView.clearSelection()
+
+        # notesStr = ';'.join(repr(self.otherProfileCollection.getNote(nid).items()) for nid in noteIds)
+        # logDebug('import: ' + notesStr)
+        logDebug('importing %d notes' % len(noteIds))
+
         for nid in noteIds:
-            note = self.otherProfileCollection.getNote(nid)
+            # load the note
+            logDebug('import note id %d' % nid)
+            otherNote = self.otherProfileCollection.getNote(nid)
+
+            # find the model name of the note
+            modelName = otherNote._model['name']
+            logDebug('model name %r' % modelName)
+
+            # find a model in current profile that matches the name of model from other profile
+            matchingModel = mw.col.models.byName(modelName)
+            logDebug('matching model %s' % matchingModel)
+
+            # TODO: handle if matchingModel is None
+            # TODO: assert that field map is same between two models
+
+            # create a new note object
+            newNote = Note(mw.col, matchingModel)
+            logDebug('new note %s %s' % (newNote.id, newNote.mid))
+
+            # set the deck that the note will generate cards into
+            newNote.model()['did'] = currentProfileDeckId
+
+            # copy field values into new note object
+            newNote.fields = otherNote.fields[:] # list of strings, so clone it
+
+            # check if note is dupe of existing one
+            if newNote.dupeOrEmpty():
+                logDebug('dupe')
+                continue
+
+            addedCardCount = mw.col.addNote(newNote)
+
+            mw.requireReset()
 
     def closeEvent(self, event):
         if self.otherProfileCollection:
             self.otherProfileCollection.close()
+
+        mw.maybeReset()
+
         super(MainDialog, self).closeEvent(event)
 
 def addMenuItem():
