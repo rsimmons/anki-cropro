@@ -53,14 +53,7 @@ class MainDialog(QDialog):
         self.initUI()
 
     def initUI(self):
-        self.noteListView = QListView()
-        self.noteListView.setResizeMode(self.noteListView.Fixed)
-        self.noteListModel = QStandardItemModel(self.noteListView)
-        self.noteListView.setModel(self.noteListModel)
-        self.noteListView.setSelectionMode(self.noteListView.ExtendedSelection)
-
         self.otherProfileDeckCombo = QComboBox()
-        self.otherProfileDeckCombo.currentIndexChanged.connect(self.otherProfileDeckComboChange)
 
         self.otherProfileCombo = QComboBox()
         otherProfileNames = getOtherProfileNames()
@@ -79,12 +72,20 @@ class MainDialog(QDialog):
         otherProfileDeckRow.addWidget(self.otherProfileDeckCombo)
         otherProfileDeckRow.addStretch(1)
 
-        filterEdit = QLineEdit()
-        filterEdit.setPlaceholderText('<filter notes>')
+        self.filterEdit = QLineEdit()
+        self.filterEdit.setPlaceholderText('<text to filter by>')
+
+        filterButton = QPushButton('Filter')
 
         filterRow = QHBoxLayout()
-        filterRow.addWidget(filterEdit)
-        filterRow.addWidget(QPushButton('Filter'))
+        filterRow.addWidget(self.filterEdit)
+        filterRow.addWidget(filterButton)
+
+        self.noteListView = QListView()
+        self.noteListView.setResizeMode(self.noteListView.Fixed)
+        self.noteListModel = QStandardItemModel(self.noteListView)
+        self.noteListView.setModel(self.noteListModel)
+        self.noteListView.setSelectionMode(self.noteListView.ExtendedSelection)
 
         currentProfileNameLabel = QLabel(mw.pm.name)
         currentProfileNameLabelFont = QFont()
@@ -139,6 +140,9 @@ class MainDialog(QDialog):
         mainVbox.addLayout(statsRow)
         mainVbox.addLayout(importRow)
 
+        self.otherProfileDeckCombo.currentIndexChanged.connect(self.updateNotesList)
+        filterButton.clicked.connect(self.updateNotesList)
+
         self.setLayout(mainVbox)
 
         self.setWindowTitle('Cross Profile Import')
@@ -148,12 +152,21 @@ class MainDialog(QDialog):
         newProfileName = self.otherProfileCombo.currentText()
         self.handleSelectOtherProfile(newProfileName)
 
-    def otherProfileDeckComboChange(self):
-        newDeckName = self.otherProfileDeckCombo.currentText()
+    def updateNotesList(self):
+        otherProfileDeckName = self.otherProfileDeckCombo.currentText()
         self.noteListModel.clear()
-        if newDeckName:
+        if otherProfileDeckName:
             # deck was selected, fill list
-            noteIds = self.otherProfileCollection.findNotes('deck:"' + newDeckName + '"') # quote name in case it has spaces
+
+            # build query string
+            query = 'deck:"' + otherProfileDeckName + '"' # quote name in case it has spaces
+
+            # get filter text, if any
+            filterText = self.filterEdit.text()
+            if filterText:
+                query += ' "%s"' % filterText
+
+            noteIds = self.otherProfileCollection.findNotes(query)
             # TODO: we could try to do this in a single sqlite query, but would be brittle
             for noteId in noteIds:
                 note = self.otherProfileCollection.getNote(noteId)
