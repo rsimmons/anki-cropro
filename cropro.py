@@ -10,7 +10,7 @@ from anki.notes import Note
 ENABLE_DEBUG_LOG = False
 logfile = None
 
-def logDebug(s):
+def logDebug(o):
     if not ENABLE_DEBUG_LOG:
         return
 
@@ -18,7 +18,7 @@ def logDebug(s):
     if not logfile:
         fn = os.path.join(mw.pm.base, 'cropro.log')
         logfile = open(fn, 'a')
-    logfile.write(s + '\n')
+    logfile.write(str(o) + '\n')
     logfile.flush()
 
 # backported from Anki 2.1 anki/utils.py
