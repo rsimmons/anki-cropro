@@ -88,6 +88,7 @@ class MainDialog(QDialog):
         self.noteListModel = QStandardItemModel(self.noteListView)
         self.noteListView.setModel(self.noteListModel)
         self.noteListView.setSelectionMode(self.noteListView.ExtendedSelection)
+        self.noteListView.doubleClicked.connect(self.doImport)
 
         currentProfileNameLabel = QLabel(mw.pm.name)
         currentProfileNameLabelFont = QFont()
@@ -130,7 +131,7 @@ class MainDialog(QDialog):
         importRow.addWidget(self.currentProfileDeckCombo)
 
         importButton = QPushButton('Import')
-        importButton.clicked.connect(self.importButtonClick)
+        importButton.clicked.connect(self.doImport)
 
         importRow.addWidget(importButton)
         importRow.addStretch(1)
@@ -193,7 +194,7 @@ class MainDialog(QDialog):
         self.otherProfileDeckCombo.clear()
         self.otherProfileDeckCombo.addItems(sorted(self.otherProfileCollection.decks.allNames()))
 
-    def importButtonClick(self):
+    def doImport(self):
         logDebug('beginning import')
 
         currentProfileDeckId = self.currentProfileDeckCombo.itemData(self.currentProfileDeckCombo.currentIndex())
