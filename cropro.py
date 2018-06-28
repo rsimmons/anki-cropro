@@ -83,6 +83,7 @@ class MainDialog(QDialog):
 
         self.noteListView = QListView()
         self.noteListView.setResizeMode(self.noteListView.Fixed)
+        self.noteListView.setEditTriggers(self.noteListView.NoEditTriggers)
         self.noteListModel = QStandardItemModel(self.noteListView)
         self.noteListView.setModel(self.noteListModel)
         self.noteListView.setSelectionMode(self.noteListView.ExtendedSelection)
