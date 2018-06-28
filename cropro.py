@@ -7,7 +7,7 @@ from anki.utils import stripHTMLMedia
 from anki import Collection
 from anki.notes import Note
 
-ENABLE_DEBUG_LOG = True
+ENABLE_DEBUG_LOG = False
 logfile = None
 
 def logDebug(s):
