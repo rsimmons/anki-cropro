@@ -241,6 +241,18 @@ class MainDialog(QDialog):
             # copy field values into new note object
             newNote.fields = otherNote.fields[:] # list of strings, so clone it
 
+            # check if there are any media files referenced by the note
+            mediaFiles = self.otherProfileCollection.media.filesInStr(otherNote.mid, otherNote.joinedFields())
+            logDebug('mediaFiles %s' % (mediaFiles,))
+            for fn in mediaFiles:
+                fullfn = os.path.join(self.otherProfileCollection.media.dir(), fn)
+                logDebug('copying from %s' % fullfn)
+                addedFn = mw.col.media.addFile(fullfn)
+                # NOTE: addedFn may differ from fn (name conflict, different contents), in which case we need to update the note.
+                if addedFn != fn:
+                    logDebug('name conflict')
+                    newNote.fields = [f.replace(fn, addedFn) for f in newNote.fields]
+
             # check if note is dupe of existing one
             if newNote.dupeOrEmpty():
                 logDebug('dupe')
