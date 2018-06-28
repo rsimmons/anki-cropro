@@ -173,7 +173,8 @@ class MainDialog(QDialog):
             for noteId in noteIds:
                 note = self.otherProfileCollection.getNote(noteId)
                 item = QStandardItem()
-                item.setText(htmlToTextLine(note.fields[0]))
+                # item.setText(htmlToTextLine(note.fields[0]))
+                item.setText(' | '.join(htmlToTextLine(f) for f in note.fields))
                 item.setData(noteId)
                 self.noteListModel.appendRow(item)
         else:
