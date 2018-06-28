@@ -1,4 +1,5 @@
 import re
+from copy import deepcopy
 
 from aqt import mw
 from aqt.qt import *
@@ -220,14 +221,15 @@ class MainDialog(QDialog):
 
             # find a model in current profile that matches the name of model from other profile
             matchingModel = mw.col.models.byName(modelName)
-            logDebug('matching model %s' % matchingModel)
-
-            # there may not be a model with the same name
-            if matchingModel is None:
-                statNoMatchingModel += 1
-                continue
-
-            # TODO: ensure that field map is same between two models (or same length?), otherwise skip
+            if matchingModel:
+                # TODO: ensure that field map is same between two models (or same length?), otherwise skip or error?
+                logDebug('matching model found, id %s' % matchingModel['id'])
+            else:
+                logDebug('no matching model, copying')
+                copiedModel = deepcopy(otherNote._model) # do deep copy just to be safe. model is a dict, but might be nested
+                copiedModel['id'] = None
+                mw.col.models.add(copiedModel)
+                matchingModel = copiedModel
 
             # create a new note object
             newNote = Note(mw.col, matchingModel)
