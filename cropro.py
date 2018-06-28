@@ -54,6 +54,7 @@ class MainDialog(QDialog):
 
     def initUI(self):
         self.noteListView = QListView()
+        self.noteListView.setResizeMode(self.noteListView.Fixed)
         self.noteListModel = QStandardItemModel(self.noteListView)
         self.noteListView.setModel(self.noteListModel)
         self.noteListView.setSelectionMode(self.noteListView.ExtendedSelection)
@@ -93,8 +94,31 @@ class MainDialog(QDialog):
         self.currentProfileDeckCombo = QComboBox()
         currentProfileDecks = mw.col.decks.all()
         currentProfileDecks.sort(key=lambda d: d['name'])
-        for deck in currentProfileDecks:
+        selectedDeckId = mw.col.decks.selected()
+        selectedIndex = None
+        for idx, deck in enumerate(currentProfileDecks):
             self.currentProfileDeckCombo.addItem(deck['name'], deck['id'])
+            if deck['id'] == selectedDeckId:
+                selectedIndex = idx
+        if selectedIndex is not None:
+            self.currentProfileDeckCombo.setCurrentIndex(selectedIndex)
+
+        statsRow = QVBoxLayout()
+
+        self.statSuccessLabel = QLabel()
+        self.statSuccessLabel.setStyleSheet('QLabel { color : green; }')
+        self.statSuccessLabel.hide()
+        statsRow.addWidget(self.statSuccessLabel)
+
+        self.statNoMatchingModelLabel = QLabel()
+        self.statNoMatchingModelLabel.setStyleSheet('QLabel { color : red; }')
+        self.statNoMatchingModelLabel.hide()
+        statsRow.addWidget(self.statNoMatchingModelLabel)
+
+        self.statDupeLabel = QLabel()
+        self.statDupeLabel.setStyleSheet('QLabel { color : orange; }')
+        self.statDupeLabel.hide()
+        statsRow.addWidget(self.statDupeLabel)
 
         importRow = QHBoxLayout()
         importRow.addWidget(QLabel('Into Profile:'))
@@ -112,6 +136,7 @@ class MainDialog(QDialog):
         mainVbox.addLayout(otherProfileDeckRow)
         mainVbox.addLayout(filterRow)
         mainVbox.addWidget(self.noteListView)
+        mainVbox.addLayout(statsRow)
         mainVbox.addLayout(importRow)
 
         self.setLayout(mainVbox)
@@ -164,9 +189,11 @@ class MainDialog(QDialog):
         # clear the selection
         self.noteListView.clearSelection()
 
-        # notesStr = ';'.join(repr(self.otherProfileCollection.getNote(nid).items()) for nid in noteIds)
-        # logDebug('import: ' + notesStr)
         logDebug('importing %d notes' % len(noteIds))
+
+        statSuccess = 0
+        statNoMatchingModel = 0
+        statDupe = 0
 
         for nid in noteIds:
             # load the note
@@ -181,8 +208,12 @@ class MainDialog(QDialog):
             matchingModel = mw.col.models.byName(modelName)
             logDebug('matching model %s' % matchingModel)
 
-            # TODO: handle if matchingModel is None
-            # TODO: assert that field map is same between two models
+            # there may not be a model with the same name
+            if matchingModel is None:
+                statNoMatchingModel += 1
+                continue
+
+            # TODO: ensure that field map is same between two models (or same length?), otherwise skip
 
             # create a new note object
             newNote = Note(mw.col, matchingModel)
@@ -197,11 +228,30 @@ class MainDialog(QDialog):
             # check if note is dupe of existing one
             if newNote.dupeOrEmpty():
                 logDebug('dupe')
+                statDupe += 1
                 continue
 
             addedCardCount = mw.col.addNote(newNote)
 
-            mw.requireReset()
+            statSuccess += 1
+
+        mw.requireReset()
+
+        if statSuccess:
+            self.statSuccessLabel.setText('%d notes successfully imported' % statSuccess)
+            self.statSuccessLabel.show()
+        else:
+            self.statSuccessLabel.hide()
+        if statNoMatchingModel:
+            self.statNoMatchingModelLabel.setText('%d notes failed to import because there is no matching Note Type in the current profile' % statNoMatchingModel)
+            self.statNoMatchingModelLabel.show()
+        else:
+            self.statNoMatchingModelLabel.hide()
+        if statDupe:
+            self.statDupeLabel.setText('%d notes were duplicates, and skipped' % statDupe)
+            self.statDupeLabel.show()
+        else:
+            self.statDupeLabel.hide()
 
     def closeEvent(self, event):
         if self.otherProfileCollection:
