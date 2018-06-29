@@ -87,9 +87,6 @@ class MainDialog(QDialog):
             self.otherProfileCombo.addItems(otherProfileNames)
             self.otherProfileCombo.currentIndexChanged.connect(self.otherProfileComboChange)
             self.handleSelectOtherProfile(otherProfileNames[0])
-        else:
-            # TODO: handle this case
-            pass
 
         otherProfileDeckRow = QHBoxLayout()
         otherProfileDeckRow.addWidget(QLabel('Import From Profile:'))
@@ -165,6 +162,10 @@ class MainDialog(QDialog):
 
         mainVbox = QVBoxLayout()
         mainVbox.addLayout(otherProfileDeckRow)
+        if not otherProfileNames:
+            noOtherProfilesWarningLabel = QLabel('This add-on only works if you have multiple profiles.')
+            noOtherProfilesWarningLabel.setStyleSheet('QLabel { color : red; }')
+            mainVbox.addWidget(noOtherProfilesWarningLabel)
         mainVbox.addLayout(filterRow)
         mainVbox.addWidget(self.noteCountLabel)
         mainVbox.addWidget(self.noteListView)
