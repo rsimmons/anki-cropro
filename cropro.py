@@ -8,9 +8,14 @@ from anki.utils import stripHTMLMedia
 from anki import Collection
 from anki.notes import Note
 
-ENABLE_DEBUG_LOG = False
-logfile = None
+### BEGIN OPTIONS
 
+MAX_DISPLAYED_NOTES = 100
+ENABLE_DEBUG_LOG = False
+
+### END OPTIONS
+
+logfile = None
 def logDebug(o):
     if not ENABLE_DEBUG_LOG:
         return
@@ -82,6 +87,8 @@ class MainDialog(QDialog):
         filterRow.addWidget(self.filterEdit)
         filterRow.addWidget(filterButton)
 
+        self.noteCountLabel = QLabel('')
+
         self.noteListView = QListView()
         self.noteListView.setResizeMode(self.noteListView.Fixed)
         self.noteListView.setEditTriggers(self.noteListView.NoEditTriggers)
@@ -139,6 +146,7 @@ class MainDialog(QDialog):
         mainVbox = QVBoxLayout()
         mainVbox.addLayout(otherProfileDeckRow)
         mainVbox.addLayout(filterRow)
+        mainVbox.addWidget(self.noteCountLabel)
         mainVbox.addWidget(self.noteListView)
         mainVbox.addLayout(statsRow)
         mainVbox.addLayout(importRow)
@@ -158,6 +166,8 @@ class MainDialog(QDialog):
     def updateNotesList(self):
         otherProfileDeckName = self.otherProfileDeckCombo.currentText()
         self.noteListModel.clear()
+        foundNoteCount = 0
+        displayedNoteCount = 0
         if otherProfileDeckName:
             # deck was selected, fill list
 
@@ -170,8 +180,11 @@ class MainDialog(QDialog):
                 query += ' "%s"' % filterText
 
             noteIds = self.otherProfileCollection.findNotes(query)
+            foundNoteCount = len(noteIds)
+            limitedNoteIds = noteIds[:MAX_DISPLAYED_NOTES]
+            displayedNoteCount = len(limitedNoteIds)
             # TODO: we could try to do this in a single sqlite query, but would be brittle
-            for noteId in noteIds:
+            for noteId in limitedNoteIds:
                 note = self.otherProfileCollection.getNote(noteId)
                 item = QStandardItem()
                 # item.setText(htmlToTextLine(note.fields[0]))
@@ -181,6 +194,11 @@ class MainDialog(QDialog):
         else:
             # deck was unselected, leave list cleared
             pass
+
+        if displayedNoteCount == foundNoteCount:
+            self.noteCountLabel.setText('%d notes found' % foundNoteCount)
+        else:
+            self.noteCountLabel.setText('%d notes found (displaying first %d)' % (foundNoteCount, displayedNoteCount))
 
     def handleSelectOtherProfile(self, name):
         # Close current collection object, if any
