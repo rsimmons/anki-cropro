@@ -321,13 +321,13 @@ class MainDialog(QDialog):
         else:
             self.statDupeLabel.hide()
 
-    def closeEvent(self, event):
+    def reject(self):
         if self.otherProfileCollection:
             self.otherProfileCollection.close()
 
         mw.maybeReset()
 
-        super(MainDialog, self).closeEvent(event)
+        QDialog.reject(self)
 
 def addMenuItem():
     a = QAction(mw)
