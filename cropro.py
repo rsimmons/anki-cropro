@@ -282,6 +282,12 @@ class MainDialog(QDialog):
             # copy field values into new note object
             newNote.fields = otherNote.fields[:] # list of strings, so clone it
 
+            # check if note is dupe of existing one
+            if newNote.dupeOrEmpty():
+                logDebug('dupe')
+                statDupe += 1
+                continue
+
             # check if there are any media files referenced by the note
             mediaFiles = self.otherProfileCollection.media.filesInStr(otherNote.mid, otherNote.joinedFields())
             logDebug('mediaFiles %s' % (mediaFiles,))
@@ -293,12 +299,6 @@ class MainDialog(QDialog):
                 if addedFn != fn:
                     logDebug('name conflict')
                     newNote.fields = [f.replace(fn, addedFn) for f in newNote.fields]
-
-            # check if note is dupe of existing one
-            if newNote.dupeOrEmpty():
-                logDebug('dupe')
-                statDupe += 1
-                continue
 
             addedCardCount = mw.col.addNote(newNote)
 
