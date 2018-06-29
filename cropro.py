@@ -6,7 +6,7 @@ This add-on allows you to find and import notes from another profile into your c
 
 MIT License
 Copyright (c) 2018 Russel Simmons
-Original concept by Matt VS Japan (@mattvsjapan)
+Original concept by CalculusAce, with help from Matt VS Japan (@mattvsjapan)
 
 TODO:
 - Handle case where user has only one profile
