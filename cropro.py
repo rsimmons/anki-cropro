@@ -177,7 +177,7 @@ class MainDialog(QDialog):
 
         self.setLayout(mainVbox)
 
-        self.setWindowTitle('Cross Profile Import')
+        self.setWindowTitle('Cross Profile Search and Import')
         self.exec_()
 
     def otherProfileComboChange(self):
@@ -332,7 +332,7 @@ class MainDialog(QDialog):
 
 def addMenuItem():
     a = QAction(mw)
-    a.setText('Cross Profile Import')
+    a.setText('Cross Profile Search and Import')
     mw.form.menuTools.addAction(a)
     a.triggered.connect(MainDialog)
 
