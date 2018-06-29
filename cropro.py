@@ -304,7 +304,8 @@ class MainDialog(QDialog):
 
             statSuccess += 1
 
-        mw.requireReset()
+        if statSuccess:
+            mw.requireReset()
 
         if statSuccess:
             self.statSuccessLabel.setText('%d notes successfully imported' % statSuccess)
