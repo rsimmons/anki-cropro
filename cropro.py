@@ -293,6 +293,11 @@ class MainDialog(QDialog):
             logDebug('mediaFiles %s' % (mediaFiles,))
             for fn in mediaFiles:
                 fullfn = os.path.join(self.otherProfileCollection.media.dir(), fn)
+
+                # referenced media might not exist, in which case we skip it
+                if not os.path.exists(fullfn):
+                    continue
+
                 logDebug('copying from %s' % fullfn)
                 addedFn = mw.col.media.addFile(fullfn)
                 # NOTE: addedFn may differ from fn (name conflict, different contents), in which case we need to update the note.
